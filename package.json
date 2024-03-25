@@ -1,0 +1,15 @@
+{
+  "name": "playtube",
+  "version": "1.0.0",
+  "description": "This is backend of Project PlayTube. The stack I am using Node.js",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon src/index.js"
+  },
+  "author": "Wasim Anwar",
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
