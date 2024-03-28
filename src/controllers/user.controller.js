@@ -2,7 +2,24 @@ import { ApiError } from "../utilities/ApiError.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utilities/cloudinary.js";
 import { ApiResponse } from "../utilities/ApiResponse.js";
+import pkg from "jsonwebtoken";
+const { verify } = pkg;
 
+const generateAccessTokenAndRefreshToken = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new ApiError(
+      500,
+      "Error While generating Acessstoken and refresh token"
+    );
+  }
+};
 const registerUser = async (req, res) => {
   // Get User data from Frontend
   const { fullname, email, username, password } = req.body;
@@ -66,4 +83,112 @@ const registerUser = async (req, res) => {
   return res.status(201).json(data);
 };
 
-export { registerUser };
+const loginUser = async (req, res) => {
+  //req body => Data
+  const { username, email, password } = req.body;
+  //Username and Email
+  if (!(email || username)) {
+    throw new ApiError(400, "Email or Password Field is required");
+  }
+  if (!password) {
+    throw new ApiError(404, "Password Field is required");
+  }
+  //find the user
+  const user = await User.findOne({ $or: [{ username }, { email }] });
+  if (!user) {
+    throw new ApiError(404, "User Does not Exits!!");
+  }
+  //password check
+  const isPasswordValid = await user.isPasswordCorrect(password);
+  console.log(isPasswordValid);
+  if (!isPasswordValid) {
+    throw new ApiError(401, "Password is incorrect");
+  }
+  //access and refresh token
+  const { accessToken, refreshToken } =
+    await generateAccessTokenAndRefreshToken(user._id);
+  //send Cookie
+  const loggedInUser = await User.findById(user._id).select(
+    "-password -refreshToken"
+  );
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(200, { user: loggedInUser, accessToken, refreshToken })
+    );
+};
+
+const logoutUser = async (req, res) => {
+  await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        refreshToken: "",
+      },
+    },
+    {
+      new: true,
+    }
+  );
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(200, {}, "User logged Out");
+};
+
+const refreshToken = async (req, res) => {
+  try {
+    const incomingRefreshToken =
+      req.cookies.refreshToken || req.body.refreshToken;
+    if (!incomingRefreshToken) {
+      throw new ApiError(404, "Refresh Token Not Found");
+    }
+    const decodedToken = verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+    if (!decodedToken) {
+      throw new ApiError(401, "Invalid Refresh token");
+    }
+    const user = await User.findById(decodedToken._id);
+    if (!user) {
+      throw new ApiError(404, "User not Found");
+    }
+    if (incomingRefreshToken !== user.refreshToken) {
+      throw new ApiError(404, "Refresh is Expired Used");
+    }
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    const { accessToken, refreshToken } =
+      await generateAccessTokenAndRefreshToken(user._id);
+    res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", refreshToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          accessToken,
+          refreshToken,
+          "Access Token and Refresh Token Generate"
+        )
+      );
+  } catch (error) {
+    throw new ApiError(401, error?.message || "Invalid Refresh Token");
+  }
+};
+export { registerUser, loginUser, logoutUser, refreshToken };

@@ -46,6 +46,7 @@ jspm_packages/
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
+src/utilities/cloudinary.js
 # TypeScript cache
 *.tsbuildinfo
 
