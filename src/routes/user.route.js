@@ -7,6 +7,7 @@ import {
   changeCurrentPassword,
   getCurrentUser,
   getUserChannerProfile,
+  getWatchHistory,
 } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJsonWebToken } from "../middlewares/auth.middleware.js";
@@ -26,4 +27,5 @@ route.get("/user/refreshtoken", verifyJsonWebToken, refreshToken);
 route.get("/user/profile", verifyJsonWebToken, getCurrentUser);
 route.post("/user/change-password", verifyJsonWebToken, changeCurrentPassword);
 route.get("/user/channel/:username", verifyJsonWebToken, getUserChannerProfile);
+route.get("/user/watch-history", verifyJsonWebToken, getWatchHistory);
 export default route;

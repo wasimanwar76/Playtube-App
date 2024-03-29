@@ -346,4 +346,5 @@ export {
   changeCurrentPassword,
   getCurrentUser,
   getUserChannerProfile,
+  getWatchHistory
 };
