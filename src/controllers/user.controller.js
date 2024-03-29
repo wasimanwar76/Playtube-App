@@ -100,7 +100,6 @@ const loginUser = async (req, res) => {
   }
   //password check
   const isPasswordValid = await user.isPasswordCorrect(password);
-  console.log(isPasswordValid);
   if (!isPasswordValid) {
     throw new ApiError(401, "Password is incorrect");
   }
@@ -191,4 +190,38 @@ const refreshToken = async (req, res) => {
     throw new ApiError(401, error?.message || "Invalid Refresh Token");
   }
 };
-export { registerUser, loginUser, logoutUser, refreshToken };
+
+const changeCurrentPassword = async (req, res) => {
+  const { currentPassword, changePassword, confirmChangePassword } = req.body;
+  if (changePassword !== confirmChangePassword) {
+    throw new ApiError(401, "Your Confirm password is not match");
+  }
+  const checkUser = await User.findById(req.user._id);
+  if (!checkUser) {
+    throw new ApiError(401, "Unauthorized user while changing a password");
+  }
+  const isPasswordcorrect = await checkUser.isPasswordCorrect(currentPassword);
+  if (!isPasswordcorrect) {
+    throw new ApiError(401, "Your current password is incorrect");
+  }
+  checkUser.password = changePassword;
+  await checkUser.save({ validateBeforeSave: false });
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password change Successfully"));
+};
+
+const getCurrentUser = async (req, res) => {
+  return res
+    .status(200)
+    .json(new ApiResponse(200, req.user, "Current user fetched successfully"));
+};
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshToken,
+  changeCurrentPassword,
+  getCurrentUser,
+};
