@@ -3,6 +3,7 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utilities/cloudinary.js";
 import { ApiResponse } from "../utilities/ApiResponse.js";
 import pkg from "jsonwebtoken";
+import mongoose from "mongoose";
 const { verify } = pkg;
 
 const generateAccessTokenAndRefreshToken = async (userId) => {
@@ -283,6 +284,60 @@ const getUserChannerProfile = async (req, res) => {
       new ApiResponse(200, channel[0], "User channel fetched successfully")
     );
 };
+
+const getWatchHistory = async (req, res) => {
+  const user = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(req.user._id),
+      },
+    },
+    {
+      $lookup: {
+        from: "videos",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullname: 1,
+                    username: 1,
+                    avatar: 1,
+                  },
+                },
+                {
+                  $addFields: {
+                    owner: {
+                      $first: "$owner",
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        user[0].watchHistor,
+        "Watch History Fetched Successfully"
+      )
+    );
+};
 export {
   registerUser,
   loginUser,
@@ -290,4 +345,5 @@ export {
   refreshToken,
   changeCurrentPassword,
   getCurrentUser,
+  getUserChannerProfile,
 };
